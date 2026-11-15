@@ -7,95 +7,80 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-URL_BASE = os.getenv(
-    "LLM_BASE_URL",
-    "https://llm-internal.softex:9001"
-)
-MODELO = os.getenv(
-    "LLM_MODEL",
-    "qwen3.5:9b-q4_K_M"
-)
-VERIFICAR_SSL = os.getenv(
-    "LLM_VERIFY_SSL", "true"
-).lower() == "true"
-
+URL_BASE = os.getenv("LLM_BASE_URL", "https://llm-internal.softex:9001")
+MODELO = os.getenv("LLM_MODEL", "qwen3.5:9b-q4_K_M")
+VERIFICAR_SSL = os.getenv("LLM_VERIFY_SSL", "false").lower() == "true"
 TIMEOUT = int(os.getenv("LLM_TIMEOUT", "120"))
 
 if not VERIFICAR_SSL:
-    urllib3.disable_warnings(
-        urllib3.exceptions.InsecureRequestWarning
-    )
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 def organizar_tarefas(texto):
-    """Envia uma anotação ao LLM e retorna as tarefas."""
-
     instrucao = (
-        "Você é um organizador de tarefas. "
-        "Transforme o texto recebido em uma lista "
-        "numerada de tarefas, indicando os prazos "
-        "mencionados. Não invente informações. "
-        "Responda em português brasileiro."
+        "Organize as anotacoes do usuario em uma lista de tarefas. "
+        "Inclua os prazos quando forem mencionados. "
+        "Nao invente informacoes. "
+        "Responda em portugues brasileiro."
     )
 
-    payload = {
+    dados = {
         "model": MODELO,
         "messages": [
-            {
-                "role": "system",
-                "content": instrucao
-            },
-            {
-                "role": "user",
-                "content": texto
-            }
+            {"role": "system", "content": instrucao},
+            {"role": "user", "content": texto}
         ],
         "stream": False
     }
 
     resposta = requests.post(
-        f"{URL_BASE.rstrip('/')}/api/chat",
-        json=payload,
+        URL_BASE.rstrip("/") + "/api/chat",
+        json=dados,
         timeout=TIMEOUT,
         verify=VERIFICAR_SSL
     )
 
     resposta.raise_for_status()
+    resultado = resposta.json()
 
-    dados = resposta.json()
-    return dados["message"]["content"]
+    return resultado["message"]["content"]
 
 
 def main():
-    print("       ORGANIZADOR")
-  
+    print("OrganizaIA")
+    print("Organize suas tarefas com inteligencia artificial.\n")
 
-    texto = input("\nDigite suas anotacoes:\n> ").strip()
+    texto = os.getenv("ORGANIZAIA_TEXTO", "").strip()
+
+    if not texto and sys.stdin.isatty():
+        texto = input("Digite suas anotacoes: ").strip()
 
     if not texto:
-        print("\nDigite um texto valido.")
+        print("Voce precisa informar alguma anotacao.")
         return
 
-    print("\nProcessando suas tarefas...\n")
+    print("\nOrganizando suas tarefas...\n")
 
     try:
         resultado = organizar_tarefas(texto)
 
         if not resultado.strip():
-            print("O modelo retornou uma resposta vazia.")
+            print("A inteligencia artificial nao retornou tarefas.")
             return
 
-        print("TAREFAS ORGANIZADAS")
-        print("-" * 45)
+        print("Suas tarefas:")
         print(resultado)
 
+    except requests.exceptions.Timeout:
+        print("A inteligencia artificial demorou muito para responder.")
+        sys.exit(1)
+
     except requests.exceptions.RequestException:
-        print("Nao foi possivel acessar o LLM. Verifique a conexao e o servidor."
-        )
+        print("Nao foi possivel conectar com a inteligencia artificial.")
         sys.exit(1)
 
     except (KeyError, TypeError, ValueError):
-        print("O LLM retornou uma resposta inesperada.")
+        print("A inteligencia artificial retornou uma resposta invalida.")
         sys.exit(1)
 
 

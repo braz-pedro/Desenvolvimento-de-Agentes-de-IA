@@ -70,7 +70,13 @@ def main():
     print("       ORGANIZADOR")
   
 
-    texto = input("\nDigite suas anotacoes:\n> ").strip()
+   texto = os.getenv("ORGANIZAIA_TEXTO", "").strip()
+
+    if not texto:
+        if sys.stdin.isatty():
+           texto = input(
+              "\nDigite suas anotacoes:\n> "
+             ).strip()
 
     if not texto:
         print("\nDigite um texto valido.")
